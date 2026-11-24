@@ -1,33 +1,88 @@
+# Plataforma de IA como Servico - C3.A2
+# Sobe TUDO com um comando:   docker compose up --build
+#
+# Somente o gateway (8000) e o Jaeger (16686, painel de traces) ficam
+# acessiveis de fora. Os demais servicos so conversam pela rede interna,
+# se achando pelo NOME (descoberta de servicos), nunca por IP fixo.
+
 services:
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
-      retries: 5
+      timeout: 3s
+      retries: 10
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    volumes:
+      - qdrant_dados:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"   # painel web dos traces
 
   inferencia:
     build: ./inferencia
     environment:
-      - REDIS_URL=redis://redis:6379/0
+      - QDRANT_URL=http://qdrant:6333
+      - VETOR_RETENCAO_DIAS=${VETOR_RETENCAO_DIAS:-7}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
     depends_on:
-      redis: {condition: service_healthy}
+      qdrant: {condition: service_healthy}
+      jaeger: {condition: service_started}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/saude')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   worker:
     build: ./worker
     environment:
       - REDIS_URL=redis://redis:6379/0
+      - URL_INFERENCIA=http://inferencia:8001
+      - TIMEOUT_SEGUNDOS=${TIMEOUT_SEGUNDOS:-3}
+      - RETRY_TENTATIVAS=${RETRY_TENTATIVAS:-3}
+      - CB_FALHAS_MAX=${CB_FALHAS_MAX:-5}
+      - CB_RESET_SEGUNDOS=${CB_RESET_SEGUNDOS:-30}
+      - MAX_TENTATIVAS=${MAX_TENTATIVAS:-3}
+      - RETENCAO_RESULTADO_SEGUNDOS=${RETENCAO_RESULTADO_SEGUNDOS:-86400}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
     depends_on:
       redis: {condition: service_healthy}
+      inferencia: {condition: service_healthy}
 
   gateway:
     build: ./gateway
-    ports: ["8000:8000"]
+    ports:
+      - "8000:8000"
     environment:
+      - REDIS_URL=redis://redis:6379/0
       - URL_INFERENCIA=http://inferencia:8001
+      - TIMEOUT_SEGUNDOS=${TIMEOUT_SEGUNDOS:-3}
+      - RETRY_TENTATIVAS=${RETRY_TENTATIVAS:-3}
+      - CB_FALHAS_MAX=${CB_FALHAS_MAX:-5}
+      - CB_RESET_SEGUNDOS=${CB_RESET_SEGUNDOS:-30}
       - JWT_SEGREDO=${JWT_SEGREDO:-troque-este-segredo}
-    depends_on: [inferencia]
+      - USUARIO_DEMO=${USUARIO_DEMO:-aluno}
+      - SENHA_DEMO=${SENHA_DEMO:-senha-demo}
+      - JWT_EXPIRA_MINUTOS=${JWT_EXPIRA_MINUTOS:-30}
+      - RATE_LIMIT_POR_MINUTO=${RATE_LIMIT_POR_MINUTO:-30}
+      - RETENCAO_RESULTADO_SEGUNDOS=${RETENCAO_RESULTADO_SEGUNDOS:-86400}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+    depends_on:
+      redis: {condition: service_healthy}
+      inferencia: {condition: service_healthy}
 
-# Observe: os servicos se referenciam pelo NOME (inferencia, redis),
-# nunca por IP fixo. Isso e descoberta de servicos. (Aula 14)
+volumes:
+  qdrant_dados:
