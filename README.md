@@ -53,6 +53,20 @@ Os serviços se encontram **pelo nome** (`http://inferencia:8001`, `redis://redi
 nunca por IP fixo. Toda configuração vem de **variáveis de ambiente** (ver `.env.example`).
 Cada serviço tem **seu próprio Dockerfile** e roda como usuário sem privilégio.
 
+### Evolução dos trabalhos anteriores
+
+Este projeto fecha o semestre reaproveitando os dois trabalhos anteriores do grupo:
+
+| De onde veio | O que foi reaproveitado | Como evoluiu no C3.A2 |
+|---|---|---|
+| [C1.A2](https://github.com/Nathojan/sd-2026-2-kit-c1a2) | Modelo de sentimento (`inferencia/modelo.py`), carregado uma única vez | Virou um microsserviço próprio, chamado por REST pelo gateway e pelo worker |
+| [C1.A2](https://github.com/Nathojan/sd-2026-2-kit-c1a2) | Fila Redis + worker, com retentativa e dead-letter (`worker/fila.py`, `worker/worker.py`) | Ganhou retenção (TTL), propagação do trace e chamada resiliente à inferência |
+| [C2.A2](https://github.com/GabrielSHerculino/sd-2026-2-kit-c2a2) | Decomposição em microsserviços REST + fila | Ganhou um API Gateway como porta única, com JWT e rate limit |
+| [C2.A2](https://github.com/GabrielSHerculino/sd-2026-2-kit-c2a2) | Circuit breaker + tempo-limite + retentativa (lá, protegendo a chamada ao LLM) | Aplicado no gateway e no worker, com um circuito por rota (isolamento de falhas) |
+| [C2.A2](https://github.com/GabrielSHerculino/sd-2026-2-kit-c2a2) | Busca por similaridade de vetores (lá, um `indice.json` em volume) | Virou um armazenamento vetorial dedicado (Qdrant), como serviço próprio |
+
+O que é novo no C3.A2: rastreamento distribuído, autenticação JWT, rate limit, deploy em nuvem com HTTPS e a seção de LGPD.
+
 ## 2. Como executar (do zero, com UM comando)
 
 Pré-requisitos: Git e Docker (com Docker Compose).
