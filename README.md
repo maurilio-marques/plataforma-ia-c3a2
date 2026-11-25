@@ -10,9 +10,13 @@ A IA é uma caixa-preta (modelo scikit-learn local); o foco é a engenharia dist
 
 ## URL pública
 
-> **https://SEU-DOMINIO.up.railway.app** ← *(substituir após o deploy — ver [deploy/RAILWAY.md](deploy/RAILWAY.md))*
+> **https://gateway-production-22996495.up.railway.app**
 >
-> Documentação interativa: `<URL>/docs` · Saúde: `<URL>/saude`
+> - Documentação interativa (Swagger): https://gateway-production-22996495.up.railway.app/docs
+> - Saúde: https://gateway-production-22996495.up.railway.app/saude
+> - Credenciais de demonstração para o `POST /login`: usuário **`aluno`** · senha **`jGFhsiuw@993hlGF`**
+>
+> Hospedado no Railway (free tier). Só o gateway é público; os demais serviços ficam na rede privada.
 
 ---
 
@@ -61,12 +65,14 @@ docker compose up --build
 
 Pronto: gateway em http://localhost:8000 (Swagger em http://localhost:8000/docs) e
 painel de traces em http://localhost:16686.
+> **Windows:** se `localhost` não abrir ("conexão redefinida"), use **http://127.0.0.1:8000/docs** e **http://127.0.0.1:16686**.
+
 O `.env` é opcional; sem ele são usados os valores padrão. Para trocar segredos: `cp .env.example .env`.
 
 ### Testando (troque `URL` pela URL pública para testar na nuvem)
 
 ```bash
-URL=http://localhost:8000
+URL=http://127.0.0.1:8000
 
 # 1) login -> token JWT
 TOKEN=$(curl -s -X POST $URL/login -H "Content-Type: application/json" \
